@@ -1,0 +1,20 @@
+=desktop
+  @media screen and ( min-width: 1000px )
+    @content
+
+=mobile
+  @media screen and ( max-width: 1000px - 1px )
+    @content
+
+=shadow($depth: 1, $direction: "bottom")
+  $coords: 0px 0px
+  @if $direction == "bottom"
+    $coords: 0px 10px * $depth
+  @if $direction == "top"
+    $coords: 0px -10px * $depth
+  @if $direction == "right"
+    $coords: -10px * $depth 0px
+  @if $direction == "left"
+    $coords: 10px * $depth 0px
+  
+  box-shadow: $coords 100px * $depth rgba(0, 0, 0, 0.125)

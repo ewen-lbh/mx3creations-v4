@@ -1,4 +1,7 @@
-export const store = () => ({
+import { firstBy } from 'thenby'
+import tinycolor from 'tinycolor2'
+
+export const state = () => ({
   themes: [
     { secondary: '#e2f9b2', primary: '#4d2f01', name: 'Avocado' },
     { secondary: '#0b0b0b', primary: '#2dff5b', name: 'Hacker' },
@@ -15,44 +18,103 @@ export const store = () => ({
     { secondary: '#6a0404', primary: '#f30e0e', name: 'Blood' },
     { secondary: '#F9F9F9', primary: '#ff0000', name: 'Duperré' }
   ],
-  current: { secondary: '#e2f9b2', primary: '#4d2f01', name: 'Avocado' }
+  current: { secondary: '#e2f9b2', primary: '#4d2f01', name: 'Avocado' },
+  inverted: false
 })
 
 export const getters = {
-  isCurrentTheme: (state, getters) => (theme) =>
+  isCurrent: (state, getters) => (theme) =>
     /* Determine if the given theme is identical to the currently set theme
      */
-    theme.secondary === getters.current.secondary &&
-    theme.primary === getters.current.primary,
-  themes: (state, getters) =>
+    theme.secondary === getters.current._secondary &&
+    theme.primary === getters.current._primary,
+  all: (state, getters) =>
     /* Retrieves all the available themes, and add a bool prop "current"
      */
     state.themes.map((theme) => ({
       ...theme,
-      isCurrent: getters.isCurrentTheme(theme)
+      isCurrent: getters.isCurrent(theme)
     })),
-  current: (state, getters) =>
-    /* Retrieves the current theme
+  notCurrent: (state, getters) =>
+    /* Retrieves all themes, except the current one.
      */
-    state.current,
+    getters.all.filter((o) => !o.isCurrent),
+  current: (state, getters) => {
+    /* Retrieves the current theme, and adds the CSS declaration to it for convenience.
+       The CSS declaration also accounts for the inverted theme state, which is not stored
+       directly by swapping .primary's & .secondary's values.
+       Also overwrite .primary & .secondary in the returned object to reflect theme inversion.
+       Keep the original colors w/ ._primary & ._secondary.
+     */
+    let primary = state.current.primary
+    let secondary = state.current.secondary
+    if (getters.inverted) {
+      // Swap colors when theme is inverted
+      ;[primary, secondary] = [secondary, primary]
+    }
+    return {
+      ...state.current,
+      _primary: state.current.primary,
+      _secondary: state.current.secondary,
+      css: `--primary:${primary};--secondary:${secondary};`,
+      primary,
+      secondary
+    }
+  },
   by: (state, getters) => (value, prop = 'name') =>
     /* Get a theme object that has a `prop` equal to `value`
      */
-    getters.themes.find((o) => o[prop] === value)
+    getters.themes.find((o) => o[prop] === value),
+  sorted: (state, getters) => (themes) =>
+    /* Sort an array of themes object by...
+      - light or dark
+      - secondary color hue
+      - primary color hue
+      - name
+    */
+    themes.sort(
+      // firstBy((o) => tinycolor(o.secondary).isLight())
+      firstBy((o) => tinycolor(o.secondary).toHsl().l)
+        .thenBy((o) => tinycolor(o.primary).toHsl().h)
+        .thenBy('name')
+    ),
+  inverted: (state, getters) =>
+    /* Retrieves a boolean representing the state of the current theme:
+     * inverted (true) or not (false)
+     * "inverted" means that the primary & secondary colors must be switched.
+     */
+    state.inverted
 }
 
 export const mutations = {
-  SET_CURRENT_THEME({ state }, theme) {
+  SET_CURRENT(state, theme) {
     /* Sets the current theme.
      */
     state.current = theme
+  },
+  SET_INVERTED(state, inverted) {
+    /* Sets the inversion state of the current theme.
+     * See getters.inverted
+     */
+    state.inverted = inverted
   }
 }
 
 export const actions = {
-  setCurrentTheme({ commit }, theme) {
+  setCurrent({ commit }, theme) {
     /* Sets the current theme.
      */
-    commit('SET_CURRENT_THEME', theme)
+    commit('SET_CURRENT', theme)
+  },
+  setInverted({ commit }, inverted) {
+    /* Sets the inversion state of the current theme.
+     * See getters.inverted
+     */
+    commit('SET_INVERTED', inverted)
+  },
+  invert({ dispatch, getters }) {
+    /* Inverts the theme.
+     */
+    dispatch('setInverted', !getters.inverted)
   }
 }
